@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JARVIS Local Processing Core v2.5</title>
+    <title>JARVIS Local Processing Core v3.0</title>
     
     <script src="coi-serviceworker.js"></script>
     
@@ -234,11 +234,11 @@
             logToTerminal(`Routing asset data stream into .${targetFormat} compilation cells...`, "info");
 
             try {
-                // Route 1: PDF to Image Extraction Interceptor
+                // Route 1: PDF to Image Extraction Engine
                 if ((fileType.includes('pdf') || currentAsset.name.toLowerCase().endsWith('.pdf')) && ['png', 'jpg', 'webp'].includes(targetFormat)) {
                     await processPdfToImageLocally(currentAsset, targetFormat, originalName);
                 }
-                // Route 2: Image Processing Matrix
+                // Route 2: Image Engine Matrix
                 else if (['png', 'jpg', 'webp'].includes(targetFormat)) {
                     await processImageLocally(currentAsset, targetFormat, originalName);
                 } 
@@ -246,7 +246,7 @@
                 else if (targetFormat === 'pdf') {
                     await processPdfLocally(currentAsset, originalName);
                 } 
-                // Route 4: Text-only to Document Structuring Engines
+                // Route 4: Text Documents
                 else if (['docx', 'pptx', 'txt'].includes(targetFormat)) {
                     if (fileType.includes('image') || fileType.includes('pdf') || currentAsset.name.toLowerCase().endsWith('.pdf')) {
                         logToTerminal("OCR Engine required to unroll pixels into text documents. Execution aborted, sir.", "error");
@@ -258,7 +258,7 @@
                         await processOfficeXmlLocally(currentAsset, targetFormat, originalName);
                     }
                 } 
-                // Route 5: Hardware-Accelerated FFmpeg Media Transcoding
+                // Route 5: Media Transcoding Engine
                 else if (['mp3', 'm4a', 'wav', 'mp4', 'mkv'].includes(targetFormat)) {
                     await processMediaLocally(currentAsset, targetFormat, originalName);
                 }
@@ -268,7 +268,7 @@
             }
         }
 
-        // PIPELINE 1: IMAGE COMPRESSION RE-CODE
+        // PIPELINE 1: IMAGE PROCESSING MATRIX
         function processImageLocally(file, format, baseName) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -300,32 +300,54 @@
             });
         }
 
-        // PIPELINE 2: PDF RASTERIZATION ENGINE
-        async function processPdfToImageLocally(file, format, baseName) {
-            logToTerminal("Activating internal layout engine. Deconstructing sheets to pixels...", "info");
-            const arrayBuffer = await file.arrayBuffer();
-            const pdf = await window['pdfjs-dist/build/pdf'].getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
-            const page = await pdf.getPage(1);
-            
-            const viewport = page.getViewport({ scale: 2.0 });
-            const canvas = document.getElementById('render-canvas');
-            const ctx = canvas.getContext('2d');
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            
-            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-            
-            let mime = 'image/png';
-            if (format === 'jpg') mime = 'image/jpeg';
-            if (format === 'webp') mime = 'image/webp';
+        // PIPELINE 2: COMPLETE PDF RASTERIZATION ENGINE
+        function processPdfToImageLocally(file, targetFormat, originalName) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                logToTerminal("Activating internal layout engine. Parsing document bytes...", "info");
+                
+                reader.onload = function(e) {
+                    window['pdfjs-dist/build/pdf'].getDocument({
+                        data: new Uint8Array(e.target.result)
+                    }).promise.then(function(pdf) {
+                        
+                        pdf.getPage(1).then(function(page) {
+                            const canvas = document.getElementById('render-canvas');
+                            const ctx = canvas.getContext('2d');
+                            
+                            const viewport = page.getViewport({ scale: 2.0 });
+                            canvas.width = viewport.width;
+                            canvas.height = viewport.height;
+                            
+                            const renderContext = {
+                                canvasContext: ctx,
+                                viewport: viewport
+                            };
+                            
+                            page.render(renderContext).promise.then(function() {
+                                let mime = 'image/png';
+                                if (targetFormat === 'jpg') mime = 'image/jpeg';
+                                if (targetFormat === 'webp') mime = 'image/webp';
 
-            canvas.toBlob((blob) => {
-                triggerDownload(URL.createObjectURL(blob), `${baseName}_page1.${format}`);
-                logToTerminal(`PDF page successfully sliced into clean .${format}, sir!`, "success");
-            }, mime, 0.95);
+                                canvas.toBlob((blob) => {
+                                    if (!blob) {
+                                        logToTerminal("Matrix generation failed.", "error");
+                                        reject("Blob failed");
+                                        return;
+                                    }
+                                    triggerDownload(URL.createObjectURL(blob), `${originalName}_page1.${targetFormat}`);
+                                    logToTerminal(`PDF page successfully sliced into clean .${targetFormat}, sir!`, "success");
+                                    resolve();
+                                }, mime, 0.95);
+                            });
+                        });
+                    }).catch(reject);
+                };
+                reader.readAsArrayBuffer(file);
+            });
         }
 
-        // PIPELINE 3: VECTOR ADOBE GENERATOR PROTOCOL
+        // PIPELINE 3: VECTOR PDF COMPILER
         async function processPdfLocally(file, baseName) {
             const pdfDoc = await PDFLib.PDFDocument.create();
             const page = pdfDoc.addPage([600, 800]);
@@ -387,25 +409,26 @@
             logToTerminal("Plain text stream written down cleanly, sir!", "success");
         }
 
-        // PIPELINE 6: ADVANCED MEDIA MATRIX CONVERTER (FFMPEG)
-        async function processMediaLocally(file, format, baseName) {
+        // PIPELINE 6: ADVANCED MEDIA TRANSCODING (FFMPEG CORES)
+        async function processMediaLocally(file, targetFormat, originalName) {
             logToTerminal("Booting high-performance WebAssembly virtual core...", "info");
             const { createFFmpeg, fetchFile } = FFmpeg;
             const ffmpeg = createFFmpeg({ log: true, corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js' });
             
+                       // --- CONTINUATION FROM LINE 418 ---
             await ffmpeg.load();
-            logToTerminal(`Processor ready. Transcoding frames to .${format}...`, "info");
+            logToTerminal(`Processor ready. Transcoding frames to .${targetFormat}...`, "info");
             
             const inName = 'input.' + file.name.split('.').pop();
-            const outName = `output.${format}`;
+            const outName = `output.${targetFormat}`;
             const fileType = file.type || file.name.toLowerCase();
             
             ffmpeg.FS('writeFile', inName, await fetchFile(file));
             
             const isAudioInput = fileType.includes('audio') || ['mp3', 'wav', 'm4a', 'ogg'].some(ext => file.name.toLowerCase().endsWith(ext));
-            const isVideoOutput = ['mp4', 'mkv'].includes(format);
+            const isVideoOutput = ['mp4', 'mkv'].includes(targetFormat);
 
-            // Audio to Video Interceptor: Weaves visual track elements if target is a video profile
+            // Audio to Video Block: Infuses uniform black background matrix frames
             if (isAudioInput && isVideoOutput) {
                 logToTerminal("Audio track detected for video profile. Compiling black background matrix grids...", "info");
                 await ffmpeg.run('-f', 'lavfi', '-i', 'color=c=black:s=640x480:r=30', '-i', inName, '-c:v', 'libx264', '-tune', 'stillimage', '-c:a', 'aac', '-b:a', '128k', '-pix_fmt', 'yuv420p', '-shortest', outName);
@@ -413,7 +436,6 @@
                 await ffmpeg.run('-i', inName, outName);
             }
             
-            // Read computed binary results back from the WebAssembly filesystem
             const data = ffmpeg.FS('readFile', outName);
             
             let mime = 'video/mp4';
@@ -423,14 +445,13 @@
             if (targetFormat === 'mkv') mime = 'video/x-matroska';
 
             triggerDownload(URL.createObjectURL(new Blob([data.buffer], { type: mime })), `${originalName}.${targetFormat}`);
-            logToTerminal("Media conversion successful, sir!", "success");
+            logToTerminal("Media packets natively transcoded and rewritten, sir!", "success");
             
-            // Clean up virtual file memory allocations
             ffmpeg.FS('unlink', inName);
             ffmpeg.FS('unlink', outName);
         }
 
-        // Global download trigger matrix
+        // UTILITY: SYSTEM DOWNLOAD CONTROLLER
         function triggerDownload(url, filename) {
             const a = document.createElement('a');
             a.href = url;
