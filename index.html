@@ -3,75 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JARVIS Master Processing Core</title>
+    <title>JARVIS Quantum Core</title>
     
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
 
     <style>
-        :root { --bg-dark: #0f172a; --panel-dark: #1e293b; --accent-cyan: #22d3ee; --accent-blue: #3b82f6; --text-light: #f8fafc; --text-muted: #94a3b8; --success: #10b981; --error: #ef4444; }
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
-        body { background-color: var(--bg-dark); color: var(--text-light); display: flex; flex-direction: column; align-items: center; padding: 20px; min-height: 100vh; }
-        .engine-container { background: var(--panel-dark); border-radius: 12px; padding: 25px; width: 100%; max-width: 500px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); }
-        .upload-zone { display: block; border: 2px dashed var(--accent-blue); border-radius: 8px; padding: 30px 20px; text-align: center; cursor: pointer; background: rgba(59, 130, 246, 0.05); }
-        #file-input { display: none; }
-        select { width: 100%; padding: 12px; margin-top: 15px; background: #0f172a; color: white; border-radius: 6px; }
-        .btn-execute { width: 100%; margin-top: 20px; padding: 14px; background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan)); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
-        .terminal-log { margin-top: 20px; padding: 12px; background: #000; border-radius: 6px; font-family: monospace; font-size: 0.85rem; color: var(--success); text-align: center; border: 1px solid var(--success); }
+        :root { --bg: #0f172a; --panel: #1e293b; --cyan: #22d3ee; --text: #f8fafc; }
+        body { background: var(--bg); color: var(--text); font-family: sans-serif; padding: 20px; display: flex; justify-content: center; }
+        .container { background: var(--panel); padding: 25px; border-radius: 12px; width: 100%; max-width: 500px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        h2 { text-align: center; color: var(--cyan); margin-bottom: 20px; }
+        #file-input { width: 100%; padding: 20px; background: #0f172a; border: 2px dashed var(--cyan); border-radius: 8px; color: white; margin-bottom: 20px; }
+        select, button { width: 100%; padding: 15px; margin-top: 10px; border-radius: 6px; border: none; font-weight: bold; }
+        button { background: linear-gradient(135deg, #3b82f6, var(--cyan)); color: white; }
+        #progress-wrapper { margin-top: 20px; display: none; }
+        #progress-bar { background: var(--cyan); width: 0%; height: 10px; border-radius: 5px; transition: width 0.3s; }
+        #terminal { margin-top: 20px; padding: 10px; background: #000; color: #10b981; font-family: monospace; font-size: 0.8rem; text-align: center; border-radius: 6px; }
     </style>
 </head>
 <body>
 
-    <div class="engine-container">
-        <label class="upload-zone" for="file-input">Select Assets (Maximum 200)</label>
+    <div class="container">
+        <h2>JARVIS QUANTUM CORE</h2>
         <input type="file" id="file-input" multiple>
         
         <select id="format-selector">
-            <optgroup label="Images">
-                <option value="png">PNG</option>
-                <option value="jpg">JPG</option>
-                <option value="webp">WEBP</option>
-            </optgroup>
-            <optgroup label="Documents">
-                <option value="pdf">PDF (Unified Master)</option>
-            </optgroup>
-            <optgroup label="Audio/Video">
-                <option value="mp3">MP3</option>
-                <option value="m4a">M4A</option>
-                <option value="wav">WAV</option>
-                <option value="mp4">MP4</option>
-                <option value="mkv">MKV</option>
-            </optgroup>
+            <optgroup label="Images"><option value="png">PNG</option><option value="jpg">JPG</option><option value="webp">WEBP</option></optgroup>
+            <optgroup label="Documents"><option value="pdf">PDF (Combine)</option></optgroup>
+            <optgroup label="Audio/Video"><option value="mp3">MP3</option><option value="m4a">M4A</option><option value="wav">WAV</option><option value="mp4">MP4</option><option value="mkv">MKV</option></optgroup>
         </select>
         
-        <button class="btn-execute" onclick="executeBatchConversion()">Compile & Execute</button>
-        <div class="terminal-log" id="terminal">System Standing By, sir.</div>
+        <button onclick="executeTask()">Compile & Execute Batch</button>
+
+        <div id="progress-wrapper">
+            <div style="background: #334155; height: 10px; border-radius: 5px;"><div id="progress-bar"></div></div>
+            <div id="progress-text" style="text-align: center; font-size: 0.7rem; margin-top: 5px;">0%</div>
+        </div>
+        
+        <div id="terminal">System Standing By, sir.</div>
     </div>
 
-    <canvas id="render-canvas" style="display:none;"></canvas>
-
     <script>
-        // MASTER DOWNLOADER: Forces Android WebView to trigger Download Manager
         function forceDownload(blob, filename) {
             const reader = new FileReader();
-            reader.onload = function() {
-                const a = document.createElement('a');
-                a.href = reader.result;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
+            reader.onload = () => {
+                const link = document.createElement('a');
+                link.href = reader.result;
+                link.download = filename;
+                link.click();
             };
             reader.readAsDataURL(blob);
         }
 
-        async function executeBatchConversion() {
+        async function executeTask() {
             const files = document.getElementById('file-input').files;
             const format = document.getElementById('format-selector').value;
             const log = document.getElementById('terminal');
-            if (files.length === 0) return log.innerText = "Error: No assets selected, sir.";
+            const progressWrapper = document.getElementById('progress-wrapper');
+            
+            if (files.length === 0) return alert("Select assets first, sir.");
 
+            progressWrapper.style.display = 'block';
             log.innerText = "Processing Queue...";
 
             try {
@@ -83,36 +75,36 @@
                         const page = pdfDoc.addPage([600, 800]);
                         page.drawImage(img, { x: 50, y: 50, width: 500, height: 700 });
                     }
-                    const pdfBytes = await pdfDoc.save();
-                    forceDownload(new Blob([pdfBytes], { type: 'application/pdf' }), "JARVIS_Export.pdf");
+                    forceDownload(new Blob([await pdfDoc.save()], { type: 'application/pdf' }), "JARVIS_Export.pdf");
                 } 
                 else if (['mp3', 'm4a', 'wav', 'mp4', 'mkv'].includes(format)) {
                     const { createFFmpeg, fetchFile } = FFmpeg;
                     const ffmpeg = createFFmpeg({ corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js' });
+                    
+                    ffmpeg.setProgress(({ ratio }) => {
+                        const p = Math.round(ratio * 100);
+                        document.getElementById('progress-bar').style.width = p + '%';
+                        document.getElementById('progress-text').innerText = p + '%';
+                    });
+
                     await ffmpeg.load();
-                    
-                    ffmpeg.FS('writeFile', 'input', await fetchFile(files[0]));
-                    await ffmpeg.run('-i', 'input', `output.${format}`);
-                    const data = ffmpeg.FS('readFile', `output.${format}`);
-                    
+                    ffmpeg.FS('writeFile', 'in', await fetchFile(files[0]));
+                    await ffmpeg.run('-i', 'in', `out.${format}`);
+                    const data = ffmpeg.FS('readFile', `out.${format}`);
                     forceDownload(new Blob([data.buffer], { type: 'application/octet-stream' }), `JARVIS_Export.${format}`);
-                    ffmpeg.FS('unlink', 'input');
-                    ffmpeg.FS('unlink', `output.${format}`);
                 }
                 else {
                     const img = new Image();
                     img.src = URL.createObjectURL(files[0]);
                     await img.decode();
-                    const canvas = document.getElementById('render-canvas');
+                    const canvas = document.createElement('canvas');
                     canvas.width = img.width; canvas.height = img.height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0);
-                    canvas.toBlob(blob => forceDownload(blob, `JARVIS_Export.${format}`), `image/${format}`);
+                    canvas.getContext('2d').drawImage(img, 0, 0);
+                    canvas.toBlob(b => forceDownload(b, `JARVIS_Export.${format}`), `image/${format}`);
                 }
-                log.innerText = "Operation complete, sir!";
+                log.innerText = "Task Complete, sir!";
             } catch (err) {
-                console.error(err);
-                log.innerText = "System Error: Processing failed, sir.";
+                log.innerText = "Error: " + err.message;
             }
         }
     </script>
