@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JARVIS Local Processing Core v5.0</title>
+    <title>JARVIS Local Processing Core</title>
     
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
@@ -66,6 +66,7 @@
         }
 
         .upload-zone {
+            display: block; /* Required for Label Bypass */
             border: 2px dashed var(--accent-blue);
             border-radius: 8px;
             padding: 30px 20px;
@@ -188,9 +189,9 @@
     <div class="header-sub">Maximum Capacity Media Engine</div>
 
     <div class="engine-container">
-        <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+        <label class="upload-zone" id="drop-zone" for="file-input">
             <p>Tap to Initialize Target Asset Streams (Max 200)</p>
-        </div>
+        </label>
         <input type="file" id="file-input" multiple>
 
         <div class="file-info" id="file-info">
@@ -261,9 +262,9 @@
             if (statusText) progressStatus.innerText = statusText;
         }
 
+        // BINDING NATIVE FILE INPUT LISTENER
         document.getElementById('file-input').addEventListener('change', function(e) {
-            if (e.target.files.length > 0) {
-                // Buffer cap lifted to 200 files
+            if (e.target.files && e.target.files.length > 0) {
                 assetBatchQueue = Array.from(e.target.files).slice(0, 200);
                 
                 let totalSize = 0;
@@ -282,6 +283,8 @@
                 progressBarFill.style.width = "0%";
                 
                 logToTerminal(`${assetBatchQueue.length} assets verified in processing ledger, sir.`, "success");
+            } else {
+                logToTerminal(`No input detected in file dialog, sir.`, "error");
             }
         });
 
@@ -291,7 +294,6 @@
             const targetFormat = document.getElementById('format-selector').value;
             const totalFiles = assetBatchQueue.length;
             
-            // PDF EXCLUSIVE ROUTE: Merge everything into one file
             if (targetFormat === 'pdf') {
                 await processImagesToSinglePdfLocally(assetBatchQueue);
                 return;
@@ -300,7 +302,6 @@
             logToTerminal(`Initializing batch array loop execution for ${totalFiles} assets...`, "info");
             updateProgressBar(0, `Starting batch execution...`);
 
-            // STANDARD BATCH ROUTE: Individual files processed 1 by 1
             for (let i = 0; i < totalFiles; i++) {
                 const currentAsset = assetBatchQueue[i];
                 const originalName = currentAsset.name.split('.')[0];
@@ -335,8 +336,6 @@
             logToTerminal(`All ${totalFiles} target operations fully processed, sir!`, "success");
         }
 
-        // --- INTERNAL MATRIX: RAW IMAGE RASTERIZER ---
-        // Fixes the PDF Download bug by forcing all formats (including WEBP) into a stable PNG buffer before embedding
         function getImageAsPngArrayBuffer(file) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -360,7 +359,6 @@
             });
         }
 
-        // PIPELINE 1: UNIFIED MULTI-IMAGE TO SINGLE PDF COMPILER
         async function processImagesToSinglePdfLocally(files) {
             logToTerminal("Initializing Unified Master Document Matrix...", "info");
             const pdfDoc = await PDFLib.PDFDocument.create();
@@ -371,7 +369,6 @@
                 updateProgressBar((i / files.length) * 100, `Mounting Page ${i + 1} of ${files.length}...`);
                 
                 try {
-                    // Normalize the image via canvas to prevent library crashes and guarantee download
                     const pngBuffer = await getImageAsPngArrayBuffer(file);
                     const imageEmbed = await pdfDoc.embedPng(pngBuffer);
 
@@ -380,7 +377,6 @@
                     const w = imageEmbed.width * ratio;
                     const h = imageEmbed.height * ratio;
                     
-                    // Center the image vertically and horizontally
                     page.drawImage(imageEmbed, { 
                         x: (600 - w) / 2, 
                         y: (800 - h) / 2, 
@@ -401,7 +397,6 @@
             logToTerminal(`Flawless Master PDF containing ${validPages} pages generated, sir!`, "success");
         }
 
-        // PIPELINE 2: IMAGE COMPILER
         function processImageLocally(file, format, baseName) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -432,7 +427,6 @@
             });
         }
 
-        // PIPELINE 3: PDF GRAPHIC SLICER
         function processPdfToImageLocally(file, targetFormat, originalName) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -466,7 +460,6 @@
             });
         }
 
-        // PIPELINE 4: TELEMETRY-AWARE MEDIA TRANSCODER (FFMPEG)
         async function processMediaLocally(file, targetFormat, originalName, progressCallback) {
             const { createFFmpeg, fetchFile } = FFmpeg;
             const ffmpeg = createFFmpeg({ log: false, corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js' });
@@ -477,7 +470,9 @@
                 if (ratio >= 0 && ratio <= 1) {
                     progressCallback(ratio * 100);
                 }
-                            const inName = 'input.' + file.name.split('.').pop();
+            });
+
+            const inName = 'input.' + file.name.split('.').pop();
             const outName = `output.${targetFormat}`;
             const fileType = file.type || file.name.toLowerCase();
             
@@ -488,13 +483,10 @@
             const isVideoOutput = ['mp4', 'mkv'].includes(targetFormat);
 
             if (isAudioInput && isVideoOutput) {
-                // Audio to Video mapping
                 await ffmpeg.run('-f', 'lavfi', '-i', 'color=c=black:s=640x480:r=30', '-i', inName, '-c:v', 'libx264', '-tune', 'stillimage', '-c:a', 'aac', '-b:a', '128k', '-pix_fmt', 'yuv420p', '-shortest', outName);
             } else if (isAudioOutput) {
-                // FIXED WAV BUG: Enforcing -vn drops all video frames so the audio container doesn't corrupt!
                 await ffmpeg.run('-i', inName, '-vn', outName);
             } else {
-                // Standard stream mapping
                 await ffmpeg.run('-i', inName, outName);
             }
             
@@ -512,7 +504,6 @@
             ffmpeg.FS('unlink', outName);
         }
 
-        // UTILITY: SYSTEM DOWNLOAD MATRIX
         function triggerDownload(url, filename) {
             const a = document.createElement('a');
             a.href = url;
